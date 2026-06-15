@@ -12,4 +12,5 @@ router.patch('/:id/estado', ctrl.cambiarEstado);
 router.post('/:id/servicios', ctrl.agregarServicio);
 router.post('/:id/repuestos', ctrl.agregarRepuesto);
 router.patch('/:id/completo', ctrl.updateCompleto);
+router.get('/:id/pdf', ctrl.getPDF);
 export default router;

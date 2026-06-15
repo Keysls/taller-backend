@@ -135,14 +135,38 @@ CREATE TABLE "ordenes_trabajo" (
     "id" TEXT NOT NULL,
     "numeroOrden" TEXT NOT NULL,
     "fecha" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "vehiculoId" TEXT NOT NULL,
+    "clienteId" TEXT,
+    "facturarA" TEXT,
+    "direccion" TEXT,
+    "dniRuc" TEXT,
+    "correo" TEXT,
+    "telefono" TEXT,
+    "contacto" TEXT,
+    "telefono2" TEXT,
+    "asesor" TEXT,
+    "vehiculoId" TEXT,
+    "placa" TEXT,
+    "marca" TEXT,
+    "modelo" TEXT,
+    "anio" INTEGER,
+    "color" TEXT,
+    "motor" TEXT,
+    "chasis" TEXT,
+    "km2" INTEGER,
+    "km1" INTEGER,
+    "tipoOrden" TEXT,
     "mecanicoId" TEXT,
+    "metodoPago" TEXT,
     "diagnostico" TEXT,
     "observaciones" TEXT,
+    "prioridad" TEXT NOT NULL DEFAULT 'NORMAL',
+    "nota1" TEXT,
+    "nota2" TEXT,
+    "descuentoSvc" DECIMAL(10,2) NOT NULL DEFAULT 0,
+    "descuentoRep" DECIMAL(10,2) NOT NULL DEFAULT 0,
     "estado" "EstadoOrden" NOT NULL DEFAULT 'PENDIENTE',
     "totalServicios" DECIMAL(10,2) NOT NULL DEFAULT 0,
     "totalRepuestos" DECIMAL(10,2) NOT NULL DEFAULT 0,
-    "totalManoObra" DECIMAL(10,2) NOT NULL DEFAULT 0,
     "totalGeneral" DECIMAL(10,2) NOT NULL DEFAULT 0,
     "creadoEn" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "actualizadoEn" TIMESTAMP(3) NOT NULL,
@@ -155,7 +179,8 @@ CREATE TABLE "ordenes_trabajo" (
 CREATE TABLE "orden_servicios" (
     "id" TEXT NOT NULL,
     "ordenId" TEXT NOT NULL,
-    "servicioId" TEXT NOT NULL,
+    "servicioId" TEXT,
+    "tipo" TEXT NOT NULL DEFAULT 'servicio',
     "precio" DECIMAL(10,2) NOT NULL,
     "descripcion" TEXT,
 
@@ -362,7 +387,10 @@ ALTER TABLE "vehiculos" ADD CONSTRAINT "vehiculos_clienteId_fkey" FOREIGN KEY ("
 ALTER TABLE "movimientos_inventario" ADD CONSTRAINT "movimientos_inventario_repuestoId_fkey" FOREIGN KEY ("repuestoId") REFERENCES "repuestos"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ordenes_trabajo" ADD CONSTRAINT "ordenes_trabajo_vehiculoId_fkey" FOREIGN KEY ("vehiculoId") REFERENCES "vehiculos"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "ordenes_trabajo" ADD CONSTRAINT "ordenes_trabajo_clienteId_fkey" FOREIGN KEY ("clienteId") REFERENCES "clientes"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ordenes_trabajo" ADD CONSTRAINT "ordenes_trabajo_vehiculoId_fkey" FOREIGN KEY ("vehiculoId") REFERENCES "vehiculos"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ordenes_trabajo" ADD CONSTRAINT "ordenes_trabajo_mecanicoId_fkey" FOREIGN KEY ("mecanicoId") REFERENCES "mecanicos"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -374,7 +402,7 @@ ALTER TABLE "ordenes_trabajo" ADD CONSTRAINT "ordenes_trabajo_cotizacionId_fkey"
 ALTER TABLE "orden_servicios" ADD CONSTRAINT "orden_servicios_ordenId_fkey" FOREIGN KEY ("ordenId") REFERENCES "ordenes_trabajo"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "orden_servicios" ADD CONSTRAINT "orden_servicios_servicioId_fkey" FOREIGN KEY ("servicioId") REFERENCES "servicios"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "orden_servicios" ADD CONSTRAINT "orden_servicios_servicioId_fkey" FOREIGN KEY ("servicioId") REFERENCES "servicios"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "orden_repuestos" ADD CONSTRAINT "orden_repuestos_ordenId_fkey" FOREIGN KEY ("ordenId") REFERENCES "ordenes_trabajo"("id") ON DELETE CASCADE ON UPDATE CASCADE;

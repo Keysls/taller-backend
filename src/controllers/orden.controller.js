@@ -46,3 +46,34 @@ export const updateCompleto = async (req, res, next) => {
     sendSuccess(res, orden);
   } catch(e) { next(e); }
 };
+
+export const getPDF = async (req, res, next) => {
+  try {
+    const orden = await svc.getById(req.params.id);
+    
+    // Mismo HTML que genera el frontend
+    const html = generarHTMLOrden(orden);
+    
+    const chromium  = (await import('@sparticuz/chromium')).default;
+    const puppeteer = (await import('puppeteer-core')).default;
+    
+    const browser = await puppeteer.launch({
+      args: chromium.args,
+      executablePath: await chromium.executablePath(),
+      headless: 'new',
+    });
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    const pdf = await page.pdf({
+      format: 'A4',
+      margin: { top:'10mm', right:'10mm', bottom:'10mm', left:'10mm' },
+      printBackground: true,
+    });
+    await browser.close();
+    
+    const nombre = `${orden.numeroOrden}_${orden.placa || 'OT'}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${nombre}"`);
+    res.send(pdf);
+  } catch(e) { next(e); }
+};

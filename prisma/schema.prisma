@@ -1,0 +1,380 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RolNombre {
+  ADMINISTRADOR
+  SUPERVISOR
+  MECANICO
+  RECEPCION
+}
+
+enum EstadoMecanico {
+  DISPONIBLE
+  OCUPADO
+  AUSENTE
+}
+
+enum EstadoOrden {
+  PENDIENTE
+  DIAGNOSTICANDO
+  EN_REPARACION
+  ESPERANDO_REPUESTOS
+  TERMINADO
+  ENTREGADO
+  CANCELADO
+}
+
+enum EstadoCotizacion {
+  PENDIENTE
+  APROBADA
+  RECHAZADA
+}
+
+enum MetodoPago {
+  EFECTIVO
+  TRANSFERENCIA
+  TARJETA
+  YAPE
+  PLIN
+}
+
+enum TipoMovimiento {
+  ENTRADA
+  SALIDA
+  AJUSTE
+}
+
+model Rol {
+  id          String    @id @default(uuid())
+  nombre      RolNombre @unique
+  descripcion String?
+  permisos    Json      @default("{}")
+  creadoEn    DateTime  @default(now())
+  usuarios    Usuario[]
+  @@map("roles")
+}
+
+model Usuario {
+  id            String     @id @default(uuid())
+  nombre        String
+  email         String     @unique
+  password      String
+  activo        Boolean    @default(true)
+  rolId         String
+  rol           Rol        @relation(fields: [rolId], references: [id])
+  creadoEn      DateTime   @default(now())
+  actualizadoEn DateTime   @updatedAt
+  auditoria     Auditoria[]
+  @@map("usuarios")
+  @@index([email])
+}
+
+model Cliente {
+  id            String       @id @default(uuid())
+  dniRuc        String       @unique
+  nombres       String
+  apellidos     String
+  telefono      String?
+  email         String?
+  direccion     String?
+  fechaRegistro DateTime     @default(now())
+  activo        Boolean      @default(true)
+  vehiculos     Vehiculo[]
+  cotizaciones  Cotizacion[]
+  ordenes       OrdenTrabajo[]
+  @@map("clientes")
+  @@index([dniRuc])
+}
+
+model Vehiculo {
+  id          String         @id @default(uuid())
+  placa       String         @unique
+  marca       String
+  modelo      String
+  anio        Int
+  color       String?
+  kilometraje Int            @default(0)
+  vin         String?        @unique
+  clienteId   String
+  cliente     Cliente        @relation(fields: [clienteId], references: [id])
+  activo      Boolean        @default(true)
+  creadoEn    DateTime       @default(now())
+  ordenes     OrdenTrabajo[]
+  cotizaciones  Cotizacion[]
+  @@map("vehiculos")
+  @@index([placa])
+  @@index([clienteId])
+}
+
+model Mecanico {
+  id           String         @id @default(uuid())
+  nombre       String
+  telefono     String?
+  especialidad String?
+  estado       EstadoMecanico @default(DISPONIBLE)
+  activo       Boolean        @default(true)
+  creadoEn     DateTime       @default(now())
+  ordenes      OrdenTrabajo[]
+  cotizaciones  Cotizacion[]
+  @@map("mecanicos")
+}
+
+model Servicio {
+  id              String           @id @default(uuid())
+  nombre          String           @unique
+  descripcion     String?
+  precioBase      Decimal          @db.Decimal(10, 2)
+  activo          Boolean          @default(true)
+  creadoEn        DateTime         @default(now())
+  ordenServicios  OrdenServicio[]
+  cotizacionItems CotizacionItem[]
+  @@map("servicios")
+}
+
+model Repuesto {
+  id              String                 @id @default(uuid())
+  codigo          String                 @unique
+  nombre          String
+  categoria       String
+  stock           Int                    @default(0)
+  stockMinimo     Int                    @default(5)
+  costo           Decimal                @db.Decimal(10, 2)
+  precioVenta     Decimal                @db.Decimal(10, 2)
+  activo          Boolean                @default(true)
+  creadoEn        DateTime               @default(now())
+  actualizadoEn   DateTime               @updatedAt
+  movimientos     MovimientoInventario[]
+  ordenRepuestos  OrdenRepuesto[]
+  cotizacionItems CotizacionItem[]
+  @@map("repuestos")
+  @@index([codigo])
+  @@index([categoria])
+}
+
+model MovimientoInventario {
+  id           String         @id @default(uuid())
+  repuestoId   String
+  repuesto     Repuesto       @relation(fields: [repuestoId], references: [id])
+  tipo         TipoMovimiento
+  cantidad     Int
+  stockAntes   Int
+  stockDespues Int
+  motivo       String?
+  referencia   String?
+  creadoEn     DateTime       @default(now())
+  @@map("movimientos_inventario")
+  @@index([repuestoId])
+}
+
+model OrdenTrabajo {
+  id             String          @id @default(uuid())
+  numeroOrden    String          @unique
+  fecha          DateTime        @default(now())
+
+  // Datos del cliente (desnormalizados)
+  clienteId      String?
+  cliente        Cliente?        @relation(fields: [clienteId], references: [id])
+  facturarA      String?
+  direccion      String?
+  dniRuc         String?
+  correo         String?
+  telefono       String?
+  contacto       String?
+  telefono2      String?
+  asesor         String?
+
+  // Vehículo (desnormalizado)
+  vehiculoId     String?
+  vehiculo       Vehiculo?       @relation(fields: [vehiculoId], references: [id])
+  placa          String?
+  marca          String?
+  modelo         String?
+  anio           Int?
+  color          String?
+  motor          String?
+  chasis         String?
+  km2            Int?
+  km1            Int?
+  tipoOrden      String?
+
+  // Técnico
+  mecanicoId     String?
+  mecanico       Mecanico?       @relation(fields: [mecanicoId], references: [id])
+
+  // OT
+  metodoPago     String?
+  diagnostico    String?
+  observaciones  String?
+  prioridad      String          @default("NORMAL")
+  nota1          String?
+  nota2          String?
+
+  descuentoSvc  Decimal  @default(0) @db.Decimal(10,2)
+  descuentoRep  Decimal  @default(0) @db.Decimal(10,2)
+
+  estado         EstadoOrden     @default(PENDIENTE)
+  totalServicios Decimal         @default(0) @db.Decimal(10,2)
+  totalRepuestos Decimal         @default(0) @db.Decimal(10,2)
+  totalGeneral   Decimal         @default(0) @db.Decimal(10,2)
+  creadoEn       DateTime        @default(now())
+  actualizadoEn  DateTime        @updatedAt
+
+  servicios      OrdenServicio[]
+  repuestos      OrdenRepuesto[]
+  pagos          Pago[]
+  cotizacionId   String?         @unique
+  cotizacion     Cotizacion?     @relation(fields: [cotizacionId], references: [id])
+
+  @@map("ordenes_trabajo")
+  @@index([vehiculoId])
+  @@index([mecanicoId])
+  @@index([estado])
+  @@index([fecha])
+}
+
+model OrdenServicio {
+  id          String       @id @default(uuid())
+  ordenId     String
+  orden       OrdenTrabajo @relation(fields: [ordenId], references: [id], onDelete: Cascade)
+  servicioId  String?                                    // ← era String, ahora opcional
+  servicio    Servicio?    @relation(fields: [servicioId], references: [id])  // ← opcional
+  tipo        String       @default("servicio")          // ← nuevo
+  precio      Decimal      @db.Decimal(10, 2)
+  descripcion String?
+  @@map("orden_servicios")
+  @@index([ordenId])
+}
+
+model OrdenRepuesto {
+  id         String       @id @default(uuid())
+  ordenId    String
+  orden      OrdenTrabajo @relation(fields: [ordenId], references: [id], onDelete: Cascade)
+  repuestoId String
+  repuesto   Repuesto     @relation(fields: [repuestoId], references: [id])
+  cantidad   Int
+  precioUnit Decimal      @db.Decimal(10, 2)
+  subtotal   Decimal      @db.Decimal(10, 2)
+  @@map("orden_repuestos")
+  @@index([ordenId])
+}
+
+model Cotizacion {
+  id            String           @id @default(uuid())
+  numeroCot     String           @unique
+
+  // Datos del cliente (guardados al momento de la cotización)
+  clienteId     String?
+  cliente       Cliente?         @relation(fields: [clienteId], references: [id])
+  facturarA     String?
+  direccion     String?
+  dniRuc        String?
+  correo        String?
+  telefono      String?
+  contacto      String?
+  telefono2     String?
+  asesor        String?
+
+  // Orden
+  metodoPago    String?
+  fechaApertura DateTime?
+  km1           Int?
+
+  // Vehículo (guardado al momento de la cotización)
+  vehiculoId    String?
+  vehiculo      Vehiculo?        @relation(fields: [vehiculoId], references: [id])
+  placa         String?
+  marca         String?
+  modelo        String?
+  anio          Int?
+  color         String?
+  motor         String?
+  chasis        String?
+  km2           Int?
+  tipoOrden     String?
+
+  // Técnico
+  mecanicoId    String?
+  mecanico      Mecanico?        @relation(fields: [mecanicoId], references: [id])
+
+  // Notas
+  nota1         String?
+  nota2         String?
+
+  // Descuentos y total
+  descuentoSvc  Decimal          @default(0) @db.Decimal(10,2)
+  descuentoRep  Decimal          @default(0) @db.Decimal(10,2)
+  total         Decimal          @default(0) @db.Decimal(10,2)
+
+  estado        EstadoCotizacion @default(PENDIENTE)
+  creadoEn      DateTime         @default(now())
+  actualizadoEn DateTime         @updatedAt
+
+  items         CotizacionItem[]
+  orden         OrdenTrabajo?
+
+  @@map("cotizaciones")
+  @@index([clienteId])
+}
+
+model CotizacionItem {
+  id           String     @id @default(uuid())
+  cotizacionId String
+  cotizacion   Cotizacion @relation(fields: [cotizacionId], references: [id], onDelete: Cascade)
+  tipo         String
+  servicioId   String?
+  servicio     Servicio?  @relation(fields: [servicioId], references: [id])
+  repuestoId   String?
+  repuesto     Repuesto?  @relation(fields: [repuestoId], references: [id])
+  descripcion  String
+  cantidad     Int        @default(1)
+  precioUnit   Decimal    @db.Decimal(10, 2)
+  subtotal     Decimal    @db.Decimal(10, 2)
+  @@map("cotizacion_items")
+}
+
+model Pago {
+  id         String       @id @default(uuid())
+  ordenId    String
+  orden      OrdenTrabajo @relation(fields: [ordenId], references: [id])
+  metodo     MetodoPago
+  monto      Decimal      @db.Decimal(10, 2)
+  referencia String?
+  notas      String?
+  fecha      DateTime     @default(now())
+  @@map("pagos")
+  @@index([ordenId])
+}
+
+model Auditoria {
+  id          String   @id @default(uuid())
+  usuarioId   String
+  usuario     Usuario  @relation(fields: [usuarioId], references: [id])
+  accion      String
+  modulo      String
+  descripcion String?
+  ip          String?
+  metadata    Json?
+  fecha       DateTime @default(now())
+  @@map("auditoria")
+  @@index([usuarioId])
+  @@index([modulo])
+  @@index([fecha])
+}
+
+model ServicioTercero {
+  id          String   @id @default(uuid())
+  nombre      String
+  descripcion String?
+  precio      Decimal  @db.Decimal(10, 2)
+  activo      Boolean  @default(true)
+  creadoEn    DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+ 
+  @@map("servicios_terceros")
+}

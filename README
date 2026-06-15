@@ -1,0 +1,168 @@
+# TallerERP — Guía de instalación desde cero
+
+## Requisitos previos
+- Node.js 20+
+- PostgreSQL corriendo en localhost:5432
+- npm
+
+---
+
+## 1. Clonar / tener los archivos del proyecto
+
+```
+taller-backend/
+taller-frontend/
+```
+
+---
+
+## 2. Backend — Configurar
+
+```bash
+cd taller-backend
+npm install
+```
+
+Crear archivo `.env`:
+```env
+DATABASE_URL="postgresql://name@localhost:5432/taller_mecanico"
+JWT_SECRET="tu_secreto_seguro_aqui"
+PORT=3000
+```
+
+---
+
+## 3. Base de datos — Crear y migrar
+
+```bash
+# Crear la BD en PostgreSQL (si no existe)
+createdb taller_mecanico
+
+# Correr migraciones (crea todas las tablas)
+npx prisma migrate dev --name init
+
+# Generar el cliente de Prisma
+npx prisma generate
+
+# Cargar datos iniciales (admin, roles, etc.)
+node src/prisma/seed.js
+```
+
+Credenciales del admin creado por el seed:
+- Email: `admin@automotrizcyc.com`
+- Password: `Admin123!`
+
+---
+
+## 4. Backend — Iniciar
+
+```bash
+npm run dev
+```
+
+Servidor corre en: `http://localhost:3000`
+
+---
+
+## 5. Frontend — Configurar e iniciar
+
+```bash
+cd taller-frontend
+npm install
+npm run dev
+```
+
+Frontend corre en: `http://localhost:5173`
+
+---
+
+## 6. Verificar que funciona
+
+- Abrir `http://localhost:5173`
+- Login con `admin@automotrizcyc.com` / `Admin123!`
+- El dashboard debe cargar sin errores
+
+---
+
+## Comandos útiles
+
+```bash
+# Ver las tablas en Prisma Studio (interfaz visual)
+npx prisma studio
+
+# Resetear la BD completamente (borra todo y vuelve a migrar + seed)
+npx prisma migrate reset
+
+# Si modificas el schema, crear nueva migración
+npx prisma migrate dev --name nombre_del_cambio
+
+# Regenerar el cliente después de cambiar el schema
+npx prisma generate
+```
+
+---
+
+## Estructura del proyecto
+
+```
+taller-backend/
+├── prisma/
+│   ├── schema.prisma       ← modelos de la BD
+│   └── seed.js             ← datos iniciales
+├── src/
+│   ├── server.js
+│   ├── app.js
+│   ├── config/
+│   ├── controllers/
+│   ├── services/
+│   ├── routes/
+│   ├── middlewares/
+│   └── utils/
+└── .env
+
+taller-frontend/
+├── public/
+│   └── logo_pdf.png        ← logo para PDF
+├── src/
+│   ├── components/
+│   │   ├── layout/
+│   │   └── ui/
+│   │       ├── NuevaCotizacionModal.jsx
+│   │       └── SearchSelect.jsx
+│   ├── pages/
+│   │   ├── Dashboard.jsx
+│   │   ├── clientes/
+│   │   ├── vehiculos/
+│   │   ├── mecanicos/
+│   │   ├── ordenes/
+│   │   ├── inventario/
+│   │   ├── cotizaciones/
+│   │   └── configuracion/
+│   ├── routes/
+│   ├── services/
+│   ├── store/
+│   └── utils/
+└── .env (opcional)
+```
+
+---
+
+## Módulos disponibles
+
+| Módulo | Ruta |
+|--------|------|
+| Dashboard | `/dashboard` |
+| Clientes | `/clientes` |
+| Vehículos | `/vehiculos` |
+| Mecánicos | `/mecanicos` |
+| Órdenes de Trabajo | `/ordenes` |
+| Inventario (Repuestos) | `/inventario` |
+| Servicios Propios | `/inventario/servicios` |
+| Servicios Terceros | `/inventario/terceros` |
+| Cotizaciones | `/cotizaciones` |
+| Usuarios | `/configuracion/usuarios` |
+
+
+LIMPIAR PUERTO
+netstat -ano | findstr :3000  
+taskkill /PID 10992  /F 

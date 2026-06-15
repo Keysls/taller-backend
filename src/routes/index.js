@@ -1,0 +1,31 @@
+import { Router } from 'express';
+import authRoutes             from './auth.routes.js';
+import clienteRoutes          from './cliente.routes.js';
+import vehiculoRoutes         from './vehiculo.routes.js';
+import mecanicoRoutes         from './mecanico.routes.js';
+import servicioRoutes         from './servicio.routes.js';
+import servicioTerceroRoutes  from './servicioTercero.routes.js';
+import ordenRoutes            from './orden.routes.js';
+import inventarioRoutes       from './inventario.routes.js';
+import pagoRoutes             from './pago.routes.js';
+import dashboardRoutes        from './dashboard.routes.js';
+import usuarioRoutes          from './usuario.routes.js';
+import rolesRoutes            from './roles.routes.js';
+import cotizacionRoutes       from './cotizacion.routes.js';
+
+const router = Router();
+router.use('/auth',               authRoutes);
+router.use('/clientes',           clienteRoutes);
+router.use('/vehiculos',          vehiculoRoutes);
+router.use('/mecanicos',          mecanicoRoutes);
+router.use('/servicios',          servicioRoutes);
+router.use('/servicios-terceros', servicioTerceroRoutes);
+router.use('/ordenes',            ordenRoutes);
+router.use('/inventario',         inventarioRoutes);
+router.use('/pagos',              pagoRoutes);
+router.use('/dashboard',          dashboardRoutes);
+router.use('/usuarios',           usuarioRoutes);
+router.use('/roles',              rolesRoutes);
+router.use('/cotizaciones',       cotizacionRoutes);
+
+export default router;

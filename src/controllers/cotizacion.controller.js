@@ -1,10 +1,12 @@
 import * as svc from '../services/cotizacion.service.js';
 import { sendSuccess } from '../utils/response.js';
 
+const getActor = (req) => ({ usuarioId: req.user?.id, ip: req.ip });
+
 export const getAll          = async (req, res, next) => { try { sendSuccess(res, await svc.getAll()); }                                      catch(e) { next(e); } };
 export const getById         = async (req, res, next) => { try { sendSuccess(res, await svc.getById(req.params.id)); }                         catch(e) { next(e); } };
-export const create          = async (req, res, next) => { try { sendSuccess(res, await svc.create(req.body), 'Cotización creada', 201); }     catch(e) { next(e); } };
-export const convertirAOrden = async (req, res, next) => { try { sendSuccess(res, await svc.convertirAOrden(req.params.id, req.body)); }       catch(e) { next(e); } };
+export const create          = async (req, res, next) => { try { sendSuccess(res, await svc.create(req.body, getActor(req)), 'Cotización creada', 201); } catch(e) { next(e); } };
+export const convertirAOrden = async (req, res, next) => { try { sendSuccess(res, await svc.convertirAOrden(req.params.id, req.body, getActor(req))); }       catch(e) { next(e); } };
 
 // ─── Detectar ruta de Chrome según entorno ────────────────────────
 const getExecutablePath = async () => {
@@ -37,7 +39,7 @@ const getLogoBase64 = async () => {
     const { join, dirname } = await import('path');
     const { fileURLToPath } = await import('url');
     const __dirname = dirname(fileURLToPath(import.meta.url));
-    const logoPath = join(__dirname, '../public/logo_pdf.png');  // ← esta línea
+    const logoPath = join(__dirname, '../public/logo_pdf.png');
     const data = readFileSync(logoPath);
     return `data:image/png;base64,${data.toString('base64')}`;
   } catch (e) {

@@ -12,6 +12,7 @@ import dashboardRoutes        from './dashboard.routes.js';
 import usuarioRoutes          from './usuario.routes.js';
 import rolesRoutes            from './roles.routes.js';
 import cotizacionRoutes       from './cotizacion.routes.js';
+import auditoriaRoutes        from './auditoria.routes.js';
 
 const router = Router();
 router.use('/auth',               authRoutes);
@@ -27,5 +28,6 @@ router.use('/dashboard',          dashboardRoutes);
 router.use('/usuarios',           usuarioRoutes);
 router.use('/roles',              rolesRoutes);
 router.use('/cotizaciones',       cotizacionRoutes);
+router.use('/auditoria',          auditoriaRoutes);
 
 export default router;

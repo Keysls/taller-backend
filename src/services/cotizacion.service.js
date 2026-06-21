@@ -1,4 +1,7 @@
 import prisma from '../config/database.js';
+import * as auditoria from './auditoria.service.js';
+
+const MODULO = 'Cotizacion';
 
 // genera COT-00001, COT-00002, etc.
 async function generarNumeroCot() {
@@ -23,7 +26,7 @@ export const getById = (id) =>
   prisma.cotizacion.findUnique({ where: { id }, include });
 
 // ── CREATE ───────────────────────────────────────────────────────
-export const create = async (data) => {
+export const create = async (data, actor = {}) => {
   const numeroCot = await generarNumeroCot();
   const {
     // Cliente
@@ -42,7 +45,7 @@ export const create = async (data) => {
     items = [], descuentoSvc = 0, descuentoRep = 0, total = 0,
   } = data;
 
-  return prisma.cotizacion.create({
+  const cot = await prisma.cotizacion.create({
     data: {
       numeroCot,
       // Cliente
@@ -94,10 +97,21 @@ export const create = async (data) => {
     },
     include,
   });
+
+  await auditoria.registrar({
+    usuarioId:   actor.usuarioId,
+    ip:          actor.ip,
+    accion:      'CREAR',
+    modulo:      MODULO,
+    descripcion: `Creó la cotización ${numeroCot}`,
+    metadata:    { entidadId: cot.id, numeroCot, total: parseFloat(total) || 0 },
+  });
+
+  return cot;
 };
 
 // ── CONVERTIR A OT ───────────────────────────────────────────────
-export const convertirAOrden = async (id, { mecanicoId, diagnostico, observaciones }) => {
+export const convertirAOrden = async (id, { mecanicoId, diagnostico, observaciones }, actor = {}) => {
   const cot = await prisma.cotizacion.findUnique({ where: { id }, include });
   if (!cot) throw Object.assign(new Error('Cotización no encontrada'), { status: 404 });
 
@@ -105,8 +119,8 @@ export const convertirAOrden = async (id, { mecanicoId, diagnostico, observacion
   const year  = new Date().getFullYear();
   const numeroOrden = `OT-${year}-${String(count + 1).padStart(5, '0')}`;
 
-  return prisma.$transaction(async (tx) => {
-    const o = await tx.ordenTrabajo.create({
+  const o = await prisma.$transaction(async (tx) => {
+    const orden = await tx.ordenTrabajo.create({
       data: {
         numeroOrden,
         vehiculoId:    cot.vehiculoId   || null,
@@ -118,6 +132,17 @@ export const convertirAOrden = async (id, { mecanicoId, diagnostico, observacion
       },
     });
     await tx.cotizacion.update({ where: { id }, data: { estado: 'APROBADA' } });
-    return o;
+    return orden;
   });
+
+  await auditoria.registrar({
+    usuarioId:   actor.usuarioId,
+    ip:          actor.ip,
+    accion:      'CAMBIO_ESTADO',
+    modulo:      MODULO,
+    descripcion: `Convirtió la cotización ${cot.numeroCot} en la orden de trabajo ${numeroOrden} (aprobada)`,
+    metadata:    { entidadId: id, ordenId: o.id, numeroOrden, estadoAnterior: cot.estado, estadoNuevo: 'APROBADA' },
+  });
+
+  return o;
 };

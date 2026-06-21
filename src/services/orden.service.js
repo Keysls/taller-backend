@@ -1,5 +1,6 @@
 import prisma from '../config/database.js';
 import { generarNumeroOrden } from '../utils/generateNumero.js';
+import * as auditoria from './auditoria.service.js';
 
 const include = {
   vehiculo: { include: { cliente: true } },
@@ -9,6 +10,8 @@ const include = {
   pagos: true,
   cotizacion: true,
 };
+
+const MODULO = 'OrdenTrabajo';
 
 export const getAll = async ({ estado, page = 1, limit = 20 }) => {
   const skip = (page - 1) * limit;
@@ -26,7 +29,7 @@ export const getById = async (id) => {
   return orden;
 };
 
-export const create = async (data) => {
+export const create = async (data, actor = {}) => {
   const numeroOrden = await generarNumeroOrden();
   const {
     clienteId, facturarA, direccion, dniRuc, correo,
@@ -110,18 +113,53 @@ export const create = async (data) => {
     });
   }
 
-  return prisma.ordenTrabajo.findUnique({ where: { id: orden.id }, include });
+  const ordenCompleta = await prisma.ordenTrabajo.findUnique({ where: { id: orden.id }, include });
+
+  await auditoria.registrar({
+    usuarioId:   actor.usuarioId,
+    ip:          actor.ip,
+    accion:      'CREAR',
+    modulo:      MODULO,
+    descripcion: `Creó la orden de trabajo ${numeroOrden}`,
+    metadata:    { entidadId: orden.id, numeroOrden, totalGeneral },
+  });
+
+  return ordenCompleta;
 };
 
-export const cambiarEstado = async (id, estado) =>
-  prisma.ordenTrabajo.update({ where: { id }, data: { estado }, include });
+export const cambiarEstado = async (id, estado, actor = {}) => {
+  const previa = await prisma.ordenTrabajo.findUnique({ where: { id }, select: { estado: true, numeroOrden: true } });
+  const orden = await prisma.ordenTrabajo.update({ where: { id }, data: { estado }, include });
 
-export const agregarServicio = async (ordenId, { servicioId, precio, descripcion }) => {
+  await auditoria.registrar({
+    usuarioId:   actor.usuarioId,
+    ip:          actor.ip,
+    accion:      'CAMBIO_ESTADO',
+    modulo:      MODULO,
+    descripcion: `Cambió estado de la orden ${previa?.numeroOrden || id} de ${previa?.estado || '—'} a ${estado}`,
+    metadata:    { entidadId: id, estadoAnterior: previa?.estado || null, estadoNuevo: estado },
+  });
+
+  return orden;
+};
+
+export const agregarServicio = async (ordenId, { servicioId, precio, descripcion }, actor = {}) => {
   await prisma.ordenServicio.create({ data: { ordenId, servicioId, precio, descripcion } });
-  return recalcularTotales(ordenId);
+  const orden = await recalcularTotales(ordenId);
+
+  await auditoria.registrar({
+    usuarioId:   actor.usuarioId,
+    ip:          actor.ip,
+    accion:      'EDITAR',
+    modulo:      MODULO,
+    descripcion: `Agregó servicio "${descripcion || servicioId}" a la orden ${orden.numeroOrden}`,
+    metadata:    { entidadId: ordenId, servicioId, precio },
+  });
+
+  return orden;
 };
 
-export const agregarRepuesto = async (ordenId, { repuestoId, cantidad, precioUnit }) => {
+export const agregarRepuesto = async (ordenId, { repuestoId, cantidad, precioUnit }, actor = {}) => {
   const subtotal = Number(cantidad) * Number(precioUnit);
   const repuesto = await prisma.repuesto.findUnique({ where: { id: repuestoId } });
   if (!repuesto || repuesto.stock < cantidad) {
@@ -131,7 +169,18 @@ export const agregarRepuesto = async (ordenId, { repuestoId, cantidad, precioUni
     prisma.ordenRepuesto.create({ data: { ordenId, repuestoId, cantidad, precioUnit, subtotal } }),
     prisma.repuesto.update({ where: { id: repuestoId }, data: { stock: { decrement: cantidad } } }),
   ]);
-  return recalcularTotales(ordenId);
+  const orden = await recalcularTotales(ordenId);
+
+  await auditoria.registrar({
+    usuarioId:   actor.usuarioId,
+    ip:          actor.ip,
+    accion:      'EDITAR',
+    modulo:      MODULO,
+    descripcion: `Agregó repuesto "${repuesto.nombre}" (x${cantidad}) a la orden ${orden.numeroOrden}`,
+    metadata:    { entidadId: ordenId, repuestoId, cantidad, precioUnit, subtotal },
+  });
+
+  return orden;
 };
 
 const recalcularTotales = async (ordenId) => {
@@ -145,9 +194,15 @@ const recalcularTotales = async (ordenId) => {
   return prisma.ordenTrabajo.update({ where: { id: ordenId }, data: { totalServicios, totalRepuestos, totalGeneral }, include });
 };
 
-export const update = async (id, data) => {
+export const update = async (id, data, actor = {}) => {
   const { mecanicoId, diagnostico, observaciones, prioridad } = data;
-  return prisma.ordenTrabajo.update({
+
+  const antes = await prisma.ordenTrabajo.findUnique({
+    where: { id },
+    select: { numeroOrden: true, mecanicoId: true, diagnostico: true, observaciones: true, prioridad: true },
+  });
+
+  const orden = await prisma.ordenTrabajo.update({
     where: { id },
     data: {
       ...(mecanicoId    !== undefined && { mecanicoId: mecanicoId || null }),
@@ -157,9 +212,22 @@ export const update = async (id, data) => {
     },
     include,
   });
+
+  const cambios = auditoria.diffCampos(antes, { mecanicoId, diagnostico, observaciones, prioridad });
+
+  await auditoria.registrar({
+    usuarioId:   actor.usuarioId,
+    ip:          actor.ip,
+    accion:      'EDITAR',
+    modulo:      MODULO,
+    descripcion: `Editó datos de la orden ${antes?.numeroOrden || id}`,
+    metadata:    { entidadId: id, cambios },
+  });
+
+  return orden;
 };
 
-export const updateCompleto = async (id, data) => {
+export const updateCompleto = async (id, data, actor = {}) => {
   const {
     clienteId, facturarA, direccion, dniRuc, correo,
     telefono, contacto, telefono2, asesor,
@@ -175,6 +243,8 @@ export const updateCompleto = async (id, data) => {
   const totalServicios = Math.max(0, subSvc * (1 - descPctSvc / 100));
   const totalRepuestos = Math.max(0, subRep * (1 - descPctRep / 100));
   const totalGeneral   = totalServicios + totalRepuestos;
+
+  const antes = await prisma.ordenTrabajo.findUnique({ where: { id } });
 
   await prisma.ordenTrabajo.update({
     where: { id },
@@ -242,5 +312,23 @@ export const updateCompleto = async (id, data) => {
     });
   }
 
-  return prisma.ordenTrabajo.findUnique({ where: { id }, include });
+  const ordenCompleta = await prisma.ordenTrabajo.findUnique({ where: { id }, include });
+
+  const cambios = auditoria.diffCampos(antes, {
+    clienteId, facturarA, direccion, dniRuc, correo, telefono, contacto, telefono2, asesor,
+    vehiculoId, placa, marca, modelo, anio, color, motor, chasis, km2, km1, tipoOrden,
+    mecanicoId, metodoPago, diagnostico, observaciones, nota1, nota2, prioridad,
+    descuentoSvc: descPctSvc, descuentoRep: descPctRep, totalServicios, totalRepuestos, totalGeneral,
+  });
+
+  await auditoria.registrar({
+    usuarioId:   actor.usuarioId,
+    ip:          actor.ip,
+    accion:      'EDITAR',
+    modulo:      MODULO,
+    descripcion: `Modificó por completo la orden ${antes?.numeroOrden || id} (servicios/repuestos/datos)`,
+    metadata:    { entidadId: id, cambios, totalGeneral },
+  });
+
+  return ordenCompleta;
 };

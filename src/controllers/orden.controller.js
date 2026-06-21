@@ -1,6 +1,8 @@
 import * as svc from '../services/orden.service.js';
 import { sendSuccess, sendPaginated } from '../utils/response.js';
 
+const getActor = (req) => ({ usuarioId: req.user?.id, ip: req.ip });
+
 export const getAll = async (req, res, next) => {
   try {
     const { estado, page, limit } = req.query;
@@ -12,35 +14,23 @@ export const getById = async (req, res, next) => {
   try { sendSuccess(res, await svc.getById(req.params.id)); } catch (err) { next(err); }
 };
 export const create = async (req, res, next) => {
-  try { sendSuccess(res, await svc.create(req.body), 'Orden creada', 201); } catch (err) { next(err); }
+  try { sendSuccess(res, await svc.create(req.body, getActor(req)), 'Orden creada', 201); } catch (err) { next(err); }
 };
 export const cambiarEstado = async (req, res, next) => {
-  try { sendSuccess(res, await svc.cambiarEstado(req.params.id, req.body.estado)); } catch (err) { next(err); }
+  try { sendSuccess(res, await svc.cambiarEstado(req.params.id, req.body.estado, getActor(req))); } catch (err) { next(err); }
 };
 export const agregarServicio = async (req, res, next) => {
-  try { sendSuccess(res, await svc.agregarServicio(req.params.id, req.body)); } catch (err) { next(err); }
+  try { sendSuccess(res, await svc.agregarServicio(req.params.id, req.body, getActor(req))); } catch (err) { next(err); }
 };
 export const agregarRepuesto = async (req, res, next) => {
-  try { sendSuccess(res, await svc.agregarRepuesto(req.params.id, req.body)); } catch (err) { next(err); }
+  try { sendSuccess(res, await svc.agregarRepuesto(req.params.id, req.body, getActor(req))); } catch (err) { next(err); }
 };
 export const update = async (req, res, next) => {
-  try {
-    const { mecanicoId, diagnostico, observaciones, prioridad } = req.body;
-    const orden = await prisma.ordenTrabajo.update({
-      where: { id: req.params.id },
-      data: {
-        mecanicoId:    mecanicoId    || undefined,
-        diagnostico:   diagnostico   ?? undefined,
-        observaciones: observaciones ?? undefined,
-        prioridad:     prioridad     || undefined,
-      },
-    });
-    sendSuccess(res, orden);
-  } catch(e) { next(e); }
+  try { sendSuccess(res, await svc.update(req.params.id, req.body, getActor(req))); } catch(e) { next(e); }
 };
 export const updateCompleto = async (req, res, next) => {
   try {
-    const orden = await svc.updateCompleto(req.params.id, req.body);
+    const orden = await svc.updateCompleto(req.params.id, req.body, getActor(req));
     sendSuccess(res, orden);
   } catch(e) { next(e); }
 };
@@ -256,6 +246,7 @@ function generarHTMLOrden(ot, logoSrc = '') {
     <div class="header-title">Orden de Trabajo</div>
     <div class="header-code">${ot?.numeroOrden||''}</div>
     <div style="font-size:10px;color:#94a3b8;margin-top:4px">${fmtFecha(ot?.fecha||ot?.creadoEn)}</div>
+    <div class="header-badge" style="background:${est.bg};color:${est.color};">${est.label}</div>
   </td>
 </tr></table>
 

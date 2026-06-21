@@ -1,16 +1,15 @@
 import { Router } from 'express';
 import * as ctrl from '../controllers/orden.controller.js';
 import { authenticate } from '../middlewares/auth.middleware.js';
-
 const router = Router();
 router.use(authenticate);
 router.get('/', ctrl.getAll);
 router.post('/', ctrl.create);
+router.get('/:id/pdf', ctrl.getPDF);
 router.get('/:id', ctrl.getById);
 router.patch('/:id', ctrl.update);
 router.patch('/:id/estado', ctrl.cambiarEstado);
 router.post('/:id/servicios', ctrl.agregarServicio);
 router.post('/:id/repuestos', ctrl.agregarRepuesto);
 router.patch('/:id/completo', ctrl.updateCompleto);
-router.get('/:id/pdf', ctrl.getPDF);
 export default router;

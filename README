@@ -49,7 +49,7 @@ node src/prisma/seed.js
 ```
 
 Credenciales del admin creado por el seed:
-- Email: `admin@automotrizcyc.com`
+- Email: `admin@taller.com`
 - Password: `Admin123!`
 
 ---

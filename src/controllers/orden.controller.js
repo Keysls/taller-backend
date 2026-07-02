@@ -2,17 +2,40 @@ import * as svc from '../services/orden.service.js';
 import { sendSuccess, sendPaginated } from '../utils/response.js';
 
 const getActor = (req) => ({ usuarioId: req.user?.id, ip: req.ip });
+const esMecanico = (req) => req.user?.rol?.nombre === 'MECANICO';
+
+const censurarOrden = (orden) => {
+  if (!orden) return orden;
+  return {
+    ...orden,
+    totalServicios: 'Oculto',
+    totalRepuestos: 'Oculto',
+    totalGeneral:   'Oculto',
+    descuentoSvc:   'Oculto',
+    descuentoRep:   'Oculto',
+    servicios: orden.servicios?.map(s => ({ ...s, precio: 'Oculto' })),
+    repuestos: orden.repuestos?.map(r => ({ ...r, precioUnit: 'Oculto', subtotal: 'Oculto' })),
+    pagos:     orden.pagos?.map(p => ({ ...p, monto: 'Oculto' })),
+    cotizacion: orden.cotizacion ? { ...orden.cotizacion, total: 'Oculto' } : orden.cotizacion,
+  };
+};
 
 export const getAll = async (req, res, next) => {
   try {
     const { estado, page, limit } = req.query;
     const result = await svc.getAll({ estado, page: +page || 1, limit: +limit || 20 });
-    sendPaginated(res, result.data, { total: result.total, page: result.page, limit: result.limit });
+    const data = esMecanico(req) ? result.data.map(censurarOrden) : result.data;
+    sendPaginated(res, data, { total: result.total, page: result.page, limit: result.limit });
   } catch (err) { next(err); }
 };
+
 export const getById = async (req, res, next) => {
-  try { sendSuccess(res, await svc.getById(req.params.id)); } catch (err) { next(err); }
+  try {
+    const orden = await svc.getById(req.params.id);
+    sendSuccess(res, esMecanico(req) ? censurarOrden(orden) : orden);
+  } catch (err) { next(err); }
 };
+
 export const create = async (req, res, next) => {
   try { sendSuccess(res, await svc.create(req.body, getActor(req)), 'Orden creada', 201); } catch (err) { next(err); }
 };

@@ -165,4 +165,4 @@ taller-frontend/
 
 LIMPIAR PUERTO
 netstat -ano | findstr :3000  
-taskkill /PID 10992  /F 
+taskkill /PID 5292  /F 

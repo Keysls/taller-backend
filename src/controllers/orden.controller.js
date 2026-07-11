@@ -152,14 +152,18 @@ function generarHTMLOrden(ot, logoSrc = '') {
   };
   const est = ESTADO_CFG[ot?.estado] || ESTADO_CFG.PENDIENTE;
 
-  const serviciosItems = ot?.servicios || [];
+  const todosServicios = ot?.servicios || [];
   const repuestosItems = ot?.repuestos || [];
+  const serviciosItems = todosServicios.filter(s => s.tipo !== 'tercero' && s.servicioId);
+  const tercerosItems  = todosServicios.filter(s => s.tipo === 'tercero' || !s.servicioId);
   const descPctSvc = Number(ot?.descuentoSvc || 0);
   const descPctRep = Number(ot?.descuentoRep || 0);
   const subSvc   = serviciosItems.reduce((s,i) => s + Number(i.precio||0), 0);
+  const subTer   = tercerosItems.reduce((s,i)  => s + Number(i.precio||0), 0);
   const subRep   = repuestosItems.reduce((s,i) => s + Number(i.subtotal||0), 0);
   const totalSvc = Math.max(0, subSvc * (1 - descPctSvc / 100));
-  const totalRep = Math.max(0, subRep * (1 - descPctRep / 100));
+  const totalTer = subTer; // terceros sin descuento
+  const totalRep = Math.max(0, subRep * (1 - descPctRep / 100)); // ← esta línea faltaba
 
   const tablaSeccion = (titulo, items, subtotalCalc, descPct, cols) => {
     if (!items || items.length === 0) return '';
@@ -295,6 +299,7 @@ function generarHTMLOrden(ot, logoSrc = '') {
 ${ot?.tipoOrden ? `<div style="font-size:11px;margin-bottom:10px">Servicio Aplicado: <strong>${ot.tipoOrden}</strong></div>` : ''}
 
 ${tablaSeccion('Servicios', serviciosItems, totalSvc, descPctSvc, 'svc')}
+${tablaSeccion('Servicios de Terceros', tercerosItems, totalTer, 0, 'svc')}
 ${tablaSeccion('Repuestos / Insumos', repuestosItems, totalRep, descPctRep, 'rep')}
 
 <table style="margin-top:18px"><tr>

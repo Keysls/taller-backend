@@ -36,6 +36,6 @@
     "prisma": "5.22.0"
   },
   "prisma": {
-  "schema": "src/prisma/schema.prisma"
+  "schema": "prisma/schema.prisma"
 }
 }
